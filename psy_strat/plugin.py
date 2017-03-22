@@ -19,7 +19,10 @@ be imported when psyplot is imported. What is should contain is:
         import psy_strat.plugin"""
 from psyplot.config.rcsetup import RcParams
 from psy_strat import __version__ as plugin_version
-from psy_simple.plugin import rcParams as psys_rcParams
+from itertools import repeat
+from psy_simple.plugin import (
+    rcParams as psys_rcParams, validate_bool, validate_int, try_and_error,
+    validate_none, validate_float, validate_str)
 
 
 def get_versions(requirements=True):
@@ -48,6 +51,54 @@ def get_versions(requirements=True):
 # a validation fails, the function should raise a ValueError or TypeError
 
 
+def validate_grouper(value):
+    """
+    Validate the grouper formatoption
+
+    Parameters
+    ----------
+    value: tuple (float ``y0``, float ``y1``, str ``s``)
+        A tuple of length 3, where the first parameter ``0<=y0<=1`` determines
+        the distance of the start to the top y-axis, the second ``0<=y1<=1``
+        the distance of the bar to the top y-axis and the third is the title
+        of the group
+    """
+    y0, y1, s = value
+    y0 = validate_float(y0)
+    y1 = validate_float(y1)
+    s = validate_str(s)
+    return y0, y1, s
+
+
+def validate_axislinestyle(value):
+    """Validate a dictionary containing axiscolor definitions
+
+    Parameters
+    ----------
+    value: dict
+        a mapping from 'left', 'right', 'bottom', 'top' to the linestyle
+
+    Returns
+    -------
+    dict
+
+    Raises
+    ------
+    ValueError"""
+    validate = try_and_error(validate_none, validate_str)
+    possible_keys = {'right', 'left', 'top', 'bottom'}
+    try:
+        value = dict(value)
+        false_keys = set(value) - possible_keys
+        if false_keys:
+            raise ValueError("Wrong keys (%s)!" % (', '.join(false_keys)))
+        for key, val in value.items():
+            value[key] = validate(val)
+    except:
+        value = dict(zip(possible_keys, repeat(validate(value))))
+    return value
+
+
 # -----------------------------------------------------------------------------
 # ------------------------------ rcParams -------------------------------------
 # -----------------------------------------------------------------------------
@@ -62,6 +113,9 @@ def get_versions(requirements=True):
 # Example::
 #
 #     defaultParams = {'my.key': [True, bool, 'What my key does']}
+
+psys_validate = psys_rcParams.validate
+psys_desc = psys_rcParams.descriptions
 defaultParams = {
 
     # key for defining new plotters
@@ -69,20 +123,60 @@ defaultParams = {
         {'stratographic': {
              'module': 'psy_strat.plotters',
              'plotter_name': 'StratPlotter',
-             'prefer_list': False,
              'default_slice': None,
+             'prefer_list': False,
              'summary': 'Make a stratographic plot of one-dimensional data'
              },
          }, dict, "The stratographic plotter identifiers"],
     # if you define new plotters, we recommend to assign a specific rcParams
     # key for it, e.g.
     'plotter.strat.transpose': [
-        True, psys_rcParams.validate['plotter.simple.transpose'],
+        True, psys_validate['plotter.simple.transpose'],
         'fmt key to switch x- and y-axis for stratographic plots'],
     'plotter.strat.titleprops': [
-        {'rot': 60, 'va': 'bottom'},
-        psys_rcParams.validate['plotter.baseplotter.titleprops'],
+        {'rotation': 45, 'va': 'bottom', 'ha': 'left'},
+        psys_validate['plotter.baseplotter.titleprops'],
         'The properties of the axes title'],
+    'plotter.strat.legendlabels': [
+        '%(name)s', psys_validate['plotter.simple.legendlabels'],
+        psys_desc['plotter.simple.legendlabels']],
+    'plotter.strat.legend': [
+        False, psys_validate['plotter.simple.legend'],
+        psys_desc['plotter.simple.legend']],
+    'plotter.strat.titlesize': [
+        'small',
+        psys_validate['plotter.baseplotter.titlesize'],
+        psys_desc['plotter.baseplotter.titlesize']],
+    'plotter.strat.title': [
+        '%(name)s',
+        psys_validate['plotter.baseplotter.title'],
+        'The axes title'],
+    'plotter.strat.title_wrap': [
+        15, validate_int, 'wrap the title after the given amount of characters'
+        ],
+    'plotter.strat.yticks_visible': [
+        True, validate_bool,
+        "Boolean determining whether the yaxis-ticklabels should be visible or"
+        " not."],
+    'plotter.strat.grouper': [
+        None, try_and_error(validate_none, validate_grouper),
+        'Group several plots together using the grouper formatoption'],
+    'plotter.strat.grouperweight': [
+        psys_rcParams['plotter.baseplotter.titleweight'],
+        psys_validate['plotter.baseplotter.titleweight'],
+        'Set the fontweight of the grouper text'],
+    'plotter.strat.groupersize': [
+        psys_rcParams['plotter.baseplotter.titlesize'],
+        psys_validate['plotter.baseplotter.titlesize'],
+        'Set the fontsize of the grouper text'],
+    'plotter.strat.grouperprops': [
+        {'bbox': {'facecolor': 'w', 'edgecolor': 'none'}},
+        psys_validate['plotter.baseplotter.titleprops'],
+        'Set the font properties of the grouper text'],
+    'plotter.strat.axislinestyle': [
+        None, validate_axislinestyle,
+        'The linestyle of the x- and y-axes'],
+
     }
 
 # create the rcParams and populate them with the defaultParams. For more
