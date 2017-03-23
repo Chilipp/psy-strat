@@ -57,17 +57,15 @@ def validate_grouper(value):
 
     Parameters
     ----------
-    value: tuple (float ``y0``, float ``y1``, str ``s``)
-        A tuple of length 3, where the first parameter ``0<=y0<=1`` determines
-        the distance of the start to the top y-axis, the second ``0<=y1<=1``
-        the distance of the bar to the top y-axis and the third is the title
+    value: tuple (float ``y1``, str ``s``)
+        A tuple of length 2, where the first parameter ``0<=y1<=1`` determines
+        the distance of the bar to the top y-axis and the second is the title
         of the group
     """
-    y0, y1, s = value
-    y0 = validate_float(y0)
+    y1, s = value
     y1 = validate_float(y1)
     s = validate_str(s)
-    return y0, y1, s
+    return y1, s
 
 
 def validate_axislinestyle(value):
