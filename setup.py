@@ -60,5 +60,9 @@ setup(name='psy-strat',
       ],
       tests_require=['pytest'],
       cmdclass={'test': PyTest},
-      entry_points={'psyplot': ['plugin=psy_strat.plugin']},
+      entry_points={
+          'psyplot': ['plugin=psy_strat.plugin'],
+          'psyplot_gui': [
+              'stratplots=psy_strat.strat_widget:StratPlotsWidget'],
+          },
       zip_safe=False)
