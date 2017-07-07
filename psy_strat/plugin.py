@@ -22,7 +22,7 @@ from psy_strat import __version__ as plugin_version
 from itertools import repeat
 from psy_simple.plugin import (
     rcParams as psys_rcParams, validate_bool, validate_int, try_and_error,
-    validate_none, validate_float, validate_str)
+    validate_none, validate_float, validate_str, validate_color)
 
 
 def get_versions(requirements=True):
@@ -97,6 +97,20 @@ def validate_axislinestyle(value):
     return value
 
 
+def validate_hlines(value):
+    """Validate the hlines formatoption
+
+    Parameters
+    ----------
+    value: object
+        Either None, True or a color"""
+    if value is None:
+        return value
+    elif value is True:
+        return '0.9'
+    return validate_color(value)
+
+
 # -----------------------------------------------------------------------------
 # ------------------------------ rcParams -------------------------------------
 # -----------------------------------------------------------------------------
@@ -116,16 +130,6 @@ psys_validate = psys_rcParams.validate
 psys_desc = psys_rcParams.descriptions
 defaultParams = {
 
-    # key for defining new plotters
-    'project.plotters': [
-        {'stratographic': {
-             'module': 'psy_strat.plotters',
-             'plotter_name': 'StratPlotter',
-             'default_slice': None,
-             'prefer_list': False,
-             'summary': 'Make a stratographic plot of one-dimensional data'
-             },
-         }, dict, "The stratographic plotter identifiers"],
     # if you define new plotters, we recommend to assign a specific rcParams
     # key for it, e.g.
     'plotter.strat.transpose': [
@@ -156,6 +160,9 @@ defaultParams = {
         True, validate_bool,
         "Boolean determining whether the yaxis-ticklabels should be visible or"
         " not."],
+    'plotter.strat.hlines': [
+        None, try_and_error(validate_none, validate_grouper),
+        'Show the measurements'],
     'plotter.strat.grouper': [
         None, try_and_error(validate_none, validate_grouper),
         'Group several plots together using the grouper formatoption'],

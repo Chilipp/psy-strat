@@ -6,14 +6,20 @@ stratographic plots such as pollen diagrams
 from __future__ import division
 import weakref
 import six
+from itertools import groupby
 import matplotlib as mpl
 import matplotlib.transforms as mt
 from collections import defaultdict
+import psyplot
 from psyplot.utils import DefaultOrderedDict
 import xarray as xr
 import numpy as np
 from psy_strat.plotters import StratPlotter
+from psyplot.data import ArrayList
 import psyplot.project as psy
+
+
+gui_plugin = 'psy_strat.strat_widget:StratPlotsWidget:stratplots'
 
 
 def stratplot(df, grouper, formatoptions=None, ax=None,
@@ -79,6 +85,7 @@ def stratplot(df, grouper, formatoptions=None, ax=None,
     ax0 = None
     x = x0
     mp = psy.gcp(True)
+    groupers = []
     with psy.Project.block_signals:
         for group, variables in groups.items():
 
@@ -87,20 +94,28 @@ def stratplot(df, grouper, formatoptions=None, ax=None,
                 continue
             w = widths[group] * total_width
             if group in all_in_one:
-                grouper_cls = StratAllInOne
+                identifier = 'all_in_one'
             elif group in percentages:
-                grouper_cls = StratPercentages
+                identifier = 'percentages'
             else:
-                grouper_cls = StratGroup
-            stratgroup = grouper_cls.from_dataset(
+                identifier = 'default'
+            grouper_cls = strat_groupers[identifier]
+            grouper = grouper_cls.from_dataset(
                 fig, mt.Bbox.from_bounds(x, y0, w, height),
                 ds, variables, fmt=dict(formatoptions.get(group, {})),
                 project=mp, ax0=ax0)
-            stratgroup.group_plots(height)
-            ax0 = ax0 or stratgroup.axes[0]
+            grouper.group_plots(height)
+            ds[group] = xr.Variable(tuple(), '',
+                                    attrs={'identifier': identifier})
+            ax0 = ax0 or grouper.axes[0]
             x += w
 
-            arr_names.extend(arr.psy.arr_name for arr in stratgroup.arrays)
+            arr_names.extend(
+                arr.psy.arr_name for arr in grouper.plotter_arrays)
+            groupers.append(grouper)
+        if psyplot.with_gui:
+            from psyplot_gui.main import mainwindow
+            mainwindow.plugins[gui_plugin].add_tree(groupers)
 
     sp = psy.gcp(True)(arr_name=arr_names)
     for ax, p in sp.axes.items():
@@ -124,25 +139,44 @@ class StratGroup(object):
 
     _arrays = None
 
+    _plotter_arrays = None
+
+    grouper_height = None
+
     #: The default formatoptions for the plots
     default_fmt = {
         'yticks_visible': False,
         }
 
     @property
-    def arrays(self):
-        """The arrays managed by this :class:`StratGroup`"""
-        return self._arrays or [ref() for ref in self._refs]
+    def plotter_arrays(self):
+        """The data objects that contain the plotters"""
+        return self._plotter_arrays or ArrayList([ref() for ref in self._refs])
 
-    @arrays.setter
-    def arrays(self, value):
-        self._arrays = value
+    @plotter_arrays.setter
+    def plotter_arrays(self, value):
+        self._plotter_arrays = value
+
+    @property
+    def arrays(self):
+        """The arrays managed by this :class:`StratGroup`. One array for each
+        variable"""
+        return self.plotter_arrays
+
+    @property
+    def all_arrays(self):
+        """All variables of this group in the dataset"""
+        arr = self.arrays[0]
+        group = arr.group
+        ds = arr.psy.base
+        return [ds.psy[arr] for arr, v in ds.variables.items()
+                if v.attrs.get('group') == group]
 
     @property
     def plotters(self):
         """The plotters of the :attr:`arrays`"""
         return list(filter(lambda p: p is not None,
-                           [arr.psy.plotter for arr in self.arrays]))
+                           [arr.psy.plotter for arr in self.plotter_arrays]))
 
     @property
     def axes(self):
@@ -150,9 +184,14 @@ class StratGroup(object):
 
     @property
     def arr_names(self):
-        return [arr.psy.arr_name for arr in self.arrays]
+        return [arr.psy.arr_name for arr in self.plotter_arrays]
 
-    def __init__(self, arrays, bbox, use_weakref=True):
+    @property
+    def group(self):
+        """The name of the group of the arrays in this grouper"""
+        return self.arrays[0].group
+
+    def __init__(self, arrays, bbox=None, use_weakref=True):
         """
         Parameters
         ----------
@@ -167,8 +206,17 @@ class StratGroup(object):
         if use_weakref:
             self._refs = [weakref.ref(arr) for arr in arrays]
         else:
-            self.arrays = arrays
+            self.plotter_arrays = arrays
+        if bbox is None:
+            boxes = [arr.psy.ax.get_position() for arr in arrays]
+            x0 = min(bbox.x0 for bbox in boxes)
+            y0 = min(bbox.y0 for bbox in boxes)
+            w = sum(bbox.width for bbox in boxes)
+            bbox = boxes[0].from_bounds(x0, y0, w, boxes[0].height)
         self.bbox = bbox
+        group = self.group
+        for arr in arrays:
+            arr.attrs['group'] = group
 
     def resize_axes(self, axes):
         """Resize the axes in this group"""
@@ -180,9 +228,29 @@ class StratGroup(object):
             ax.set_position([x0, ax_bbox.y0, w, ax_bbox.height])
             x0 += w
 
-    def group_plots(self, height):
-        self.plotters[0].update(grouper=(height, '%(group)s'),
-                                draw=False)
+    def group_plots(self, height=None):
+        plotter = next((plotter for plotter in self.plotters
+                        if plotter.ax.get_visible()), None)
+        if plotter is None:
+            return
+        height = height or self.grouper_height
+        if height is None:
+            height = plotter['grouper'][0]
+        self.grouper_height = height
+        plotter.update(grouper=(height, '%(group)s'),
+                       draw=False, force=True)
+        for p in self.plotters:
+            with p.no_validation:
+                p['grouper'] = (height, '%(group)s')
+
+    @property
+    def figure(self):
+        """The figure that contains the plots"""
+        return self.axes[0].figure
+
+    def is_visible(self, arr):
+        """Check if the given `arr` is shown"""
+        return arr.psy.plotter.ax.get_visible()
 
     @classmethod
     def from_dataset(cls, fig, bbox, ds, variables, fmt=None, project=None,
@@ -235,6 +303,54 @@ class StratGroup(object):
         ret.resize_axes(axes)
         return ret
 
+    def hide_array(self, name):
+        """Hide the variable of the given `name`
+
+        Parameters
+        ----------
+        name: str
+            The variable name"""
+        arr = next(iter(self.plotter_arrays(name=name)), None)
+        i, first_visible = next(filter(
+            lambda t: t[1].psy.ax.get_visible(),
+            enumerate(self.plotter_arrays)))
+        if arr is None or not arr.psy.ax.get_visible():  # array isn't plotted
+            return
+        elif arr is first_visible:
+            p = psy.Project(self.plotter_arrays)
+            p.unshare(keys='grouper', draw=False)
+            p[i + 1:].share(keys='grouper', draw=False)
+        arr.psy.ax.set_visible(False)
+        if arr is self.arrays[0]:
+            pass
+        self.resize_axes([ax for ax in self.axes if ax.get_visible()])
+        self.group_plots()
+
+    def show_array(self, name):
+        """Show the variable of the given `name`
+
+        Parameters
+        ----------
+        name: str
+            The variable name"""
+        arrays = self.plotter_arrays
+        arr = next(iter(arrays(name=name)), None)
+        key, first_invisibles = next(
+            groupby(arrays, lambda arr: arr.psy.ax.get_visible()))
+        if key:  # first plot is visible
+            first_invisibles = []
+
+        if arr is None or arr.psy.ax.get_visible():  # array isn't plotted
+            return
+        elif any(arr is invisible_arr for invisible_arr in first_invisibles):
+            i = next(i for i, a in enumerate(arrays) if a.name == name)
+            p = psy.Project(arrays)
+            p.unshare(keys='grouper', draw=False)
+            p[i:].share(keys='grouper', draw=False)
+        arr.psy.ax.set_visible(True)
+        self.resize_axes([ax for ax in self.axes if ax.get_visible()])
+        self.group_plots()
+
 
 class StratPercentages(StratGroup):
     """A :class:`StratGroup` for percentages plots"""
@@ -263,8 +379,16 @@ class StratAllInOne(StratGroup):
     default_fmt['titleprops'] = {}
     default_fmt['legend'] = True
 
+    @property
+    def arrays(self):
+        return self.plotter_arrays[0]
+
     def group_plots(self, height):
         pass
+
+    def is_visible(self, arr):
+        """Check if the given `arr` is shown"""
+        return arr.name in self.plotter_arrays[0].names
 
     @classmethod
     def from_dataset(cls, fig, bbox, ds, variables, fmt=None, project=None,
@@ -310,3 +434,45 @@ class StratAllInOne(StratGroup):
         if project is not None:
             project.extend(sp, new_name=True)
         return cls(list(sp), bbox, use_weakref=project is not None)
+
+    def hide_array(self, name):
+        """Hide the variable of the given `name`
+
+        Parameters
+        ----------
+        name: str
+            The variable name"""
+        i, arr = next(((i, arr) for i, arr in enumerate(self.arrays)
+                       if arr.name == name), (None, None))
+        plotter = self.plotters[0]
+        v = plotter['plot']
+        if v is None or isinstance(v, six.string_types):
+            v = [v] * len(self.arrays)
+        if arr is None or v[i] is None:  # array isn't plotted
+            return
+        v[i] = None
+        plotter.update(plot=v, force=True)
+
+    def show_array(self, name):
+        """Show the variable of the given `name`
+
+        Parameters
+        ----------
+        name: str
+            The variable name"""
+        i, arr = next(((i, arr) for i, arr in enumerate(self.arrays)
+                       if arr.name == name), (None, None))
+        plotter = self.plotters[0]
+        v = plotter['plot']
+        if v is None or isinstance(v, six.string_types):
+            v = [v] * len(self.arrays)
+        if arr is None or v[i] is not None:  # array is plotted
+            return
+        v[i] = '-'
+        plotter.update(plot=v, force=True)
+
+
+strat_groupers = {
+    'all_in_one': StratAllInOne,
+    'percentages': StratPercentages,
+    'default': StratGroup}

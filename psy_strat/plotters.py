@@ -222,6 +222,11 @@ class AxisLineStyle(DictFormatoption):
 
     name = 'Linestyle of x- and y-axes'
 
+    @property
+    def value2pickle(self):
+        """Return the current axis colors"""
+        return {key: s.get_linestyle() for key, s in self.ax.spines.items()}
+
     def initialize_plot(self, value):
         positions = ['right', 'left', 'bottom', 'top']
         #: :class:`dict` storing the default linewidths
@@ -238,6 +243,42 @@ class AxisLineStyle(DictFormatoption):
             elif self is None:
                 spine.set_linestyle('solid')
                 spine.set_linewidth(self.default_lw[pos])
+
+
+class MeasurementLines(Formatoption):
+    """
+    Draw lines at the measurement locations
+
+    Possible types
+    --------------
+    None
+        Don't draw any lines
+    color
+        The color of the lines
+    """
+
+    default = None
+
+    artists = None
+
+    dependencies = ['transpose', 'xlim', 'plot']
+
+    def update(self, value):
+        self.remove()
+        if value is None:
+            return
+        get_y = self.transpose.get_y
+        ys = np.unique(np.concatenate([get_y(arr) for arr in self.iter_data]))
+        if self.plot.value is not None:
+            kws = {'zorder': self.plot._plot[0].get_zorder() - 0.2}
+        else:
+            kws = {}
+        self.artists = self.ax.hlines(ys, *self.xlim.range, color=value, **kws)
+
+    def remove(self):
+        if self.artists is not None:
+            self.artists.remove()
+            self.artists = None
 
 # -----------------------------------------------------------------------------
 # ------------------------------ Plotters -------------------------------------
@@ -256,3 +297,4 @@ class StratPlotter(LinePlotter):
     grouperprops = label_props(grouper)
     grouperweight = label_weight(grouper)
     groupersize = label_size(grouper)
+    hlines = MeasurementLines('hlines')
