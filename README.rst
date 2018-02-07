@@ -1,5 +1,5 @@
 ===================================================
-psy-strat: A psyplot plugin for stratographic plots
+psy-strat: A psyplot plugin for stratigraphic plots
 ===================================================
 
 This template serves as a basis for new psyplot plugins. Go through every file

@@ -134,7 +134,7 @@ defaultParams = {
     # key for it, e.g.
     'plotter.strat.transpose': [
         True, psys_validate['plotter.simple.transpose'],
-        'fmt key to switch x- and y-axis for stratographic plots'],
+        'fmt key to switch x- and y-axis for stratigraphic plots'],
     'plotter.strat.titleprops': [
         {'rotation': 45, 'va': 'bottom', 'ha': 'left'},
         psys_validate['plotter.baseplotter.titleprops'],

@@ -1,7 +1,7 @@
-"""Module for a widget for stratographic plots
+"""Module for a widget for stratigraphic plots
 
 This module defines the :class:`StratPlotsWidget` class that can be used to
-manage stratographic plots. It is designed as a plugin for the
+manage stratigraphic plots. It is designed as a plugin for the
 :class:`psyplot_gui.main.MainWindow` class"""
 import sys
 from psyplot_gui.compat.qtcompat import (
@@ -54,11 +54,11 @@ class GrouperItem(QTreeWidgetItem):
 
 
 class StratPlotsWidget(QWidget, DockMixin):
-    """A widget for managing the stratographic plots from the psy-strat package
+    """A widget for managing the stratigraphic plots from the psy-strat package
     """
 
     #: The title of the widget
-    title = 'Stratographic plots'
+    title = 'Stratigraphic plots'
 
     #: Display the dock widget at the right side of the GUI
     dock_position = Qt.RightDockWidgetArea

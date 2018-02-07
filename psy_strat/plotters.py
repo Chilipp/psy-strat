@@ -109,7 +109,7 @@ class AxesGrouper(TextBase, Formatoption):
     tuple (float ``y``, str ``s``)
         A tuple of length 2, where the first parameter ``0<=y<=1`` determines
         the distance of the bar to the top y-axis and the second is the title
-        of the group
+        of the group. `y` must be given relative to the axes height.
     """
 
     texts = []

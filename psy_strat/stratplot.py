@@ -1,7 +1,7 @@
-"""Module to create new stratographic plots
+"""Module to create new stratigraphic plots
 
 This module defines the :func:`stratplot` function that can be used to create
-stratographic plots such as pollen diagrams
+stratigraphic plots such as pollen diagrams
 """
 from __future__ import division
 import weakref
@@ -25,7 +25,7 @@ gui_plugin = 'psy_strat.strat_widget:StratPlotsWidget:stratplots'
 def stratplot(df, grouper, formatoptions=None, ax=None,
               thresh=0.01, percentages=[], exclude=[],
               widths=None, calculate_percentages=True,
-              min_perc=5.0, trunc_height=0.3, fig=None, all_in_one=[]):
+              min_percentage=20.0, trunc_height=0.3, fig=None, all_in_one=[]):
     import psyplot.project as psy
     import matplotlib.pyplot as plt
     groups = DefaultOrderedDict(list)
@@ -35,7 +35,7 @@ def stratplot(df, grouper, formatoptions=None, ax=None,
         groups[group].append(col)
         cols[col] = group
     widths = widths or defaultdict(
-        lambda: 1. / len(set(groups).difference(percentages)))
+        lambda: 1. / (len(set(groups).difference(percentages)) or 1))
     formatoptions = formatoptions or {}
 
     if calculate_percentages and set(percentages).intersection(groups):
@@ -77,7 +77,8 @@ def stratplot(df, grouper, formatoptions=None, ax=None,
         fig = fig or plt.gcf()
     x0 = bbox.x0
     y0 = bbox.y0
-    height = bbox.height - bbox.height * trunc_height
+    orig_height = bbox.height
+    height = orig_height * (1 - trunc_height)
     total_width = bbox.width
     x1 = x0 + total_width
 
@@ -104,7 +105,15 @@ def stratplot(df, grouper, formatoptions=None, ax=None,
                 fig, mt.Bbox.from_bounds(x, y0, w, height),
                 ds, variables, fmt=dict(formatoptions.get(group, {})),
                 project=mp, ax0=ax0)
-            grouper.group_plots(height)
+            if identifier == 'percentages':
+                resize = False
+                for plotter in grouper.plotters:
+                    if plotter.ax.get_xlim()[1] < min_percentage:
+                        plotter.update(xlim=(0, min_percentage))
+                        resize = True
+                if resize:
+                    grouper.resize_axes(grouper.axes)
+            grouper.group_plots(trunc_height / height)
             ds[group] = xr.Variable(tuple(), '',
                                     attrs={'identifier': identifier})
             ax0 = ax0 or grouper.axes[0]
@@ -116,8 +125,11 @@ def stratplot(df, grouper, formatoptions=None, ax=None,
         if psyplot.with_gui:
             from psyplot_gui.main import mainwindow
             mainwindow.plugins[gui_plugin].add_tree(groupers)
+    # invert the vertical axis
+    ax0.invert_yaxis()
 
     sp = psy.gcp(True)(arr_name=arr_names)
+    sp[0].psy.update(yticks_visible=True, ylabel='%(name)s', draw=False)
     for ax, p in sp.axes.items():
         ax_bbox = ax.get_position()
         d = {}
@@ -132,7 +144,7 @@ def stratplot(df, grouper, formatoptions=None, ax=None,
 
 
 class StratGroup(object):
-    """Abstract base class for visualizing stratographic plots"""
+    """Abstract base class for visualizing stratigraphic plots"""
 
     #: list of weakref. Weak references to the created arrays
     _refs = []
@@ -256,9 +268,9 @@ class StratGroup(object):
     def from_dataset(cls, fig, bbox, ds, variables, fmt=None, project=None,
                      ax0=None):
         """
-        Create :class:`StratGroup` while creating a stratographic plot
+        Create :class:`StratGroup` while creating a stratigraphic plot
 
-        Create a stratographic plot within the given `bbox` of `fig`.
+        Create a stratigraphic plot within the given `bbox` of `fig`.
 
         Parameters
         ----------
@@ -358,6 +370,7 @@ class StratPercentages(StratGroup):
     default_fmt = StratGroup.default_fmt.copy()
     default_fmt['plot'] = 'areax'
     default_fmt['xlim'] = (0, 'rounded')
+    default_fmt['xticks'] = np.arange(10, 100, 20)
 
     def resize_axes(self, axes):
         """Resize the axes in this group"""
@@ -394,9 +407,9 @@ class StratAllInOne(StratGroup):
     def from_dataset(cls, fig, bbox, ds, variables, fmt=None, project=None,
                      ax0=None):
         """
-        Create :class:`StratGroup` while creating a stratographic plot
+        Create :class:`StratGroup` while creating a stratigraphic plot
 
-        Create a stratographic plot within the given `bbox` of `fig`.
+        Create a stratigraphic plot within the given `bbox` of `fig`.
 
         Parameters
         ----------
