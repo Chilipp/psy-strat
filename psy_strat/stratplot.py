@@ -22,16 +22,26 @@ import psyplot.project as psy
 gui_plugin = 'psy_strat.strat_widget:StratPlotsWidget:stratplots'
 
 
-def stratplot(df, grouper, formatoptions=None, ax=None,
+NOGROUP = 'nogroup'
+
+
+def _no_grouper(col):
+    """Return an empty string to disable the grouping"""
+    return NOGROUP
+
+
+def stratplot(df, group_func=None, formatoptions=None, ax=None,
               thresh=0.01, percentages=[], exclude=[],
               widths=None, calculate_percentages=True,
               min_percentage=20.0, trunc_height=0.3, fig=None, all_in_one=[]):
     import psyplot.project as psy
     import matplotlib.pyplot as plt
+    if group_func is None:
+        group_func = _no_grouper
     groups = DefaultOrderedDict(list)
     cols = {}
     for col in df.columns:
-        group = grouper(col)
+        group = group_func(col)
         groups[group].append(col)
         cols[col] = group
     widths = widths or defaultdict(
@@ -47,9 +57,9 @@ def stratplot(df, grouper, formatoptions=None, ax=None,
                 dfp.ix[i, :] = np.asarray(row) / np.sum(row) * 100.
     # NOTE: we create the Dataset manually instead of using
     # xarray.Dataset.from_dataframe becuase that is much faster
-    idx = df.index.name
+    idx = df.index.name or 'y'
     ds = xr.Dataset(
-        {col: xr.Variable((idx), df[col]) for col in df.columns},
+        {col: xr.Variable((idx, ), df[col]) for col in df.columns},
         {idx: xr.Variable((idx, ), df.index)})
 
     for var, varo in ds.variables.items():
@@ -113,7 +123,8 @@ def stratplot(df, grouper, formatoptions=None, ax=None,
                         resize = True
                 if resize:
                     grouper.resize_axes(grouper.axes)
-            grouper.group_plots(trunc_height / height)
+            if group != NOGROUP:
+                grouper.group_plots(trunc_height / height)
             ds[group] = xr.Variable(tuple(), '',
                                     attrs={'identifier': identifier})
             ax0 = ax0 or grouper.axes[0]
@@ -246,8 +257,10 @@ class StratGroup(object):
         if plotter is None:
             return
         height = height or self.grouper_height
-        if height is None:
+        if height is None and plotter['grouper']:
             height = plotter['grouper'][0]
+        elif height is None:
+            return
         self.grouper_height = height
         plotter.update(grouper=(height, '%(group)s'),
                        draw=False, force=True)

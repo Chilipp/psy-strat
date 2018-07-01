@@ -29,7 +29,7 @@ class GrouperItem(QTreeWidgetItem):
             child = QTreeWidgetItem(0)
             self.addChild(child)
             # variable name
-            child.setText(0, arr.name)
+            child.setText(0, str(arr.name))
             # checkbox
             cb = QCheckBox()
             cb.setChecked(self.grouper.is_visible(arr))
