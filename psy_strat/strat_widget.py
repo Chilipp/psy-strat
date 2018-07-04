@@ -4,9 +4,10 @@ This module defines the :class:`StratPlotsWidget` class that can be used to
 manage stratigraphic plots. It is designed as a plugin for the
 :class:`psyplot_gui.main.MainWindow` class"""
 import sys
+from itertools import chain
 from psyplot_gui.compat.qtcompat import (
     QWidget, Qt, QTabWidget, QTreeWidget, QTreeWidgetItem, QVBoxLayout,
-    QCheckBox)
+    QCheckBox, QAbstractItemView)
 from psyplot_gui.common import DockMixin
 import psyplot.project as psy
 from psyplot.utils import unique_everseen
@@ -25,22 +26,31 @@ class GrouperItem(QTreeWidgetItem):
         self.setText(0, grouper.group)
 
     def add_array_children(self):
-        for arr in self.grouper.arrays:
+        arrays = self.grouper.arrays
+        last = len(arrays) - 1
+        group = self.grouper.group
+        for i, arr in enumerate(arrays):
             child = QTreeWidgetItem(0)
             self.addChild(child)
             # variable name
             child.setText(0, str(arr.name))
+            # arrow buttons
+            child.setText(1, u'⇧' if i else '')
+            child.setText(2, u'⇩' if i < last else '')
             # checkbox
             cb = QCheckBox()
             cb.setChecked(self.grouper.is_visible(arr))
             cb.stateChanged.connect(self.show_or_hide_func(arr.name))
-            self.tree.setItemWidget(child, 1, cb)
+            self.tree.setItemWidget(child, 3, cb)
             # mean
-            child.setText(2, '%1.3f' % arr.mean().values)
+            child.setText(4, '%1.3f' % arr.mean().values)
             # min
-            child.setText(3, '%1.3f' % arr.min().values)
+            child.setText(5, '%1.3f' % arr.min().values)
             # max
-            child.setText(4, '%1.3f' % arr.max().values)
+            child.setText(6, '%1.3f' % arr.max().values)
+            # group
+            if arr.group != group:
+                child.setText(7, str(arr.group))
 
     def show_or_hide_func(self, name):
         """Create a function that displays or hides the plot for an array"""
@@ -123,12 +133,56 @@ class StratPlotsWidget(QWidget, DockMixin):
         if self.hidden:
             self.hide_plugin()
 
+    def move_selected_children(self, child, col):
+        if col not in [1, 2] or child.parent() is None:
+            return
+        top = child.parent()
+        selected = chain([child], top.tree.selectedItems())
+        up = col == 1
+        move = -1 if up else 1
+        children = sorted(
+            unique_everseen(
+                [child for child in selected if child.parent() is top],
+                key=top.indexOfChild),
+            key=top.indexOfChild, reverse=not up)
+        current_indices = list(map(top.indexOfChild, children))
+        last = top.childCount() - 1
+        for current, child in zip(current_indices, children):
+            if ((up and current == 0) or (not up and current == last)):
+                return
+            cb = top.tree.itemWidget(child, 3)
+            checked = cb.isChecked()
+            top.takeChild(current)
+            if up:
+                top.insertChild(current + move, child)
+            else:
+                if current == last - 1:
+                    top.addChild(child)
+                else:
+                    top.insertChild(current + move, child)
+            cb = QCheckBox()
+            cb.setChecked(checked)
+            cb.stateChanged.connect(top.show_or_hide_func(child.text(0)))
+            top.tree.setItemWidget(child, 3, cb)
+        for child in children:
+            child.setSelected(True)
+        for i, child in enumerate(map(top.child, range(last+1))):
+            child.setText(1, u'⇧' if i > 0 else '')
+            child.setText(2, u'⇩' if i < last else '')
+        top.grouper.reorder(
+            [child.text(0) for child in map(top.child,
+                                            range(top.childCount()))])
+        top.grouper.figure.canvas.draw()
+
     def add_tree(self, groupers, title=None):
         """Add a new QTreeWidget to the :attr:`tabs` widget"""
         tree = QTreeWidget(parent=self)
-        tree.setColumnCount(5)
-        tree.setHeaderLabels(['Name', 'Visible', 'mean', 'min', 'max'])
+        tree.setColumnCount(7)
+        tree.setHeaderLabels(
+            ['Name', '', '', 'Visible', 'mean', 'min', 'max', 'Group'])
         ds = groupers[0].arrays[0].psy.base
+        tree.itemClicked.connect(self.move_selected_children)
+        tree.setSelectionMode(QAbstractItemView.MultiSelection)
 
         # fill the tree
         for grouper in groupers:
@@ -138,7 +192,7 @@ class StratPlotsWidget(QWidget, DockMixin):
 
         self.tabs.addTab(tree, title or 'Dataset %i' % ds.psy.num)
         tree.expandAll()
-        for i in range(5):
+        for i in range(7):
             tree.resizeColumnToContents(i)
         self.show_plugin()
         self.groupers[ds.psy.num] = groupers

@@ -4,9 +4,12 @@ This module defines the plotters for the psy-strat package.
 """
 from __future__ import division
 import textwrap
-from psyplot.plotter import Formatoption, DictFormatoption
+from itertools import cycle
+from psyplot.data import safe_list
+from psyplot.plotter import (
+    Formatoption, DictFormatoption, BEFOREPLOTTING, START)
 import six
-from psy_simple.plotters import LinePlotter
+import psy_simple.plotters as psyps
 from psy_simple.base import (
     TextBase, label_props, label_size, label_weight, Title)
 import numpy as np
@@ -280,12 +283,176 @@ class MeasurementLines(Formatoption):
             self.artists.remove()
             self.artists = None
 
+
+class ExagFactor(Formatoption):
+    """
+    The exaggerations factor
+
+    Possible types
+    --------------
+    float
+        The factor by how much the data should be exaggerated
+
+    See Also
+    --------
+    exag_color, exag
+    """
+
+    priority = BEFOREPLOTTING
+
+    name = 'Exaggeration factor'
+
+    def update(self, value):
+        # Does nothing
+        pass
+
+
+class ExagPlot(psyps.LinePlot):
+
+    __doc__ = psyps.LinePlot.__doc__
+
+    dependencies = ['exag_factor']
+
+    def plot_arr(self, arr, *args, **kwargs):
+        return super(ExagPlot, self).plot_arr(
+            arr * self.exag_factor.value, *args, **kwargs)
+
+
+class Occurences(Formatoption):
+    """
+    Specify the range for occurences
+
+    This formatoption can be used to specify a minimum and a maximum value.
+    The parts of the data that fall into this range will be considered as an
+    occurence, set to 0 and marked by the :attr:`occurence_value` formatoption
+
+    Possible types
+    --------------
+    None
+        Do not mark anything as an occurence
+    float
+        Anything below the given number will be considered as an occurence
+    tuple of floats ``(vmin, vmax)``
+        The minimum and maximum value. Anything between `vmin` and `vmax` will
+        be marked as a occurence
+
+    See Also
+    --------
+    occurence_marker, occurence_value
+    """
+
+    name = 'Occurences range'
+
+    priority = START
+
+    children = ['maskless', 'maskleq', 'maskgreater', 'maskgeq']
+
+    def update(self, value):
+        if value is None:
+            return
+        self.occurences = []
+        try:
+            value = list(value)
+        except TypeError:
+            value = [-np.inf, value]
+        vmin, vmax = value
+        for i, arr in enumerate(self.iter_data):
+            new_arr = arr.copy(True)
+            mask = (arr.values >= vmin) & (arr.values <= vmax)
+            self.occurences.append(mask)
+            new_arr.values[mask] = 0
+            self.set_data(new_arr, i)
+
+
+class OccurenceMarker(Formatoption):
+    """
+    Specify the marker for occurences
+
+    This formatoption can be used to define the marker style for occurences.
+
+    Possible types
+    --------------
+    None
+        Use the mean of the axes limits
+    float
+        Specify the x-value for an occurence
+    list of floats
+        Specify the x-value for an occurence for each array explicitly
+
+    See Also
+    --------
+    occurences, occurence_value
+    """
+
+    name = 'Marker for the occurences'
+
+    def update(self, value):
+        # Does nothing, value is used in :meth:`OccurencePlot.update`
+        pass
+
+
+class OccurencePlot(Formatoption):
+    """
+    Specify the value to use for occurences in the plot
+
+    This formatoption can be used to define where the occurence marker should
+    be placed.
+
+    Possible types
+    --------------
+    None
+        Use the mean of the axes limits
+    float
+        Specify the x-value for an occurence
+    list of floats
+        Specify the x-value for an occurence for each array explicitly
+
+    See Also
+    --------
+    occurences, occurence_marker
+    """
+
+    dependencies = ['occurences', 'xlim', 'occurence_marker', 'color',
+                    'transpose']
+
+    _artists = None
+
+    name = 'Occurence plot value'
+
+    def update(self, value):
+        self.remove()
+        if self.occurences.value is None:
+            return
+        elif value is None:
+            value = np.mean(self.xlim.range)
+        self._artists = artists = []
+        for mask, arr, val, color, marker in zip(
+                self.occurences.occurences, self.iter_data,
+                cycle(safe_list(value)), self.color.colors,
+                cycle(self.occurence_marker.value)):
+            x = arr[arr.dims[-1]].values[mask]
+            y = [val] * len(x)
+            if self.transpose.value:
+                x, y = y, x
+            artists.extend(
+                self.ax.plot(x, y, marker=marker, color=color, lw=0))
+
+    def remove(self):
+        if self._artists is not None:
+            for a in self._artists:
+                try:
+                    a.remove()
+                except ValueError:
+                    pass
+            del self._artists
+
+
 # -----------------------------------------------------------------------------
 # ------------------------------ Plotters -------------------------------------
 # -----------------------------------------------------------------------------
 
 
-class StratPlotter(LinePlotter):
+class StratPlotter(psyps.LinePlotter):
 
     _rcparams_string = ['plotter.strat.']
 
@@ -298,3 +465,34 @@ class StratPlotter(LinePlotter):
     grouperweight = label_weight(grouper)
     groupersize = label_size(grouper)
     hlines = MeasurementLines('hlines')
+    exag_color = psyps.LineColors('exag_color')
+    exag_factor = ExagFactor('exag_factor')
+    exag = ExagPlot('exag', color='exag_color')
+
+    # occurences
+    occurences = Occurences('occurences')
+    occurence_marker = OccurenceMarker('occurence_marker')
+    occurence_value = OccurencePlot('occurence_value')
+
+
+class BarStratPlotter(psyps.BarPlotter):
+
+    _rcparams_string = ['plotter.strat.', 'plotter.barstrat.']
+
+    yticks_visible = YTicksVisibility('yticks_visible')
+    axislinestyle = AxisLineStyle('axislinestyle')
+    title = LeftTitle('title')
+    title_wrap = TitleWrap('title_wrap')
+    grouper = AxesGrouper('grouper')
+    grouperprops = label_props(grouper)
+    grouperweight = label_weight(grouper)
+    groupersize = label_size(grouper)
+    hlines = MeasurementLines('hlines')
+    exag_color = psyps.LineColors('exag_color')
+    exag_factor = ExagFactor('exag_factor')
+    exag = ExagPlot('exag', color='exag_color')
+
+    # occurences
+    occurences = Occurences('occurences')
+    occurence_marker = OccurenceMarker('occurence_marker')
+    occurence_value = OccurencePlot('occurence_value')

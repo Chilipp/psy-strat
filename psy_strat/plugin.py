@@ -22,7 +22,8 @@ from psy_strat import __version__ as plugin_version
 from itertools import repeat
 from psy_simple.plugin import (
     rcParams as psys_rcParams, validate_bool, validate_int, try_and_error,
-    validate_none, validate_float, validate_str, validate_color)
+    validate_none, validate_float, validate_str, validate_color,
+    validate_lineplot, validate_marker, ValidateList)
 
 
 def get_versions(requirements=True):
@@ -181,7 +182,23 @@ defaultParams = {
     'plotter.strat.axislinestyle': [
         None, validate_axislinestyle,
         'The linestyle of the x- and y-axes'],
-
+    'plotter.strat.exag_color': [
+        '0.7', psys_validate['plotter.simple.color'],
+        'The color for exaggerations'],
+    'plotter.strat.exag_factor': [
+        10, validate_float, 'The exaggeration factor'],
+    'plotter.strat.exag': [
+        None, validate_lineplot, 'The plotting style for exaggerations'],
+    'plotter.strat.occurences': [
+        None, try_and_error(validate_none, validate_float,
+                            ValidateList(float, 2)),
+        "The range that should be considered as an occurence"],
+    'plotter.strat.occurence_marker': [
+        '+', validate_marker, 'The symbol of the marker for occurences'],
+    'plotter.strat.occurence_value': [
+        None, try_and_error(validate_none, validate_float,
+                            ValidateList(float)),
+        'The value to use for an occurence in the plot']
     }
 
 # create the rcParams and populate them with the defaultParams. For more
