@@ -66,7 +66,9 @@ def stratplot(df, group_func=None, formatoptions=None, ax=None,
         except TypeError:
             summed = list(groups)
         stacked.append('Summed')
-        groups['Summed'] = summed
+        groups['Summed'] = [g + '_summed' for g in summed]
+        if widths:
+            widths.setdefault('Summed', 0.2)
     else:
         summed = []
 
@@ -90,14 +92,16 @@ def stratplot(df, group_func=None, formatoptions=None, ax=None,
     for var, varo in ds.variables.items():
         if var not in ds.coords:
             varo.attrs['group'] = group_func(var)
+            varo.attrs['maingroup'] = cols[var]
     for group in summed:
         variables = [var for var, varo in ds.variables.items()
                      if varo.attrs.get('group') == group]
-        ds[group] = xr.Variable(
+        ds[group + '_summed'] = xr.Variable(
             (idx, ), df[variables].sum(axis=1).values,
-            attrs={'long_name': 'Sum of %s' % group, 'group': 'Summed'})
+            attrs={'long_name': 'Sum of %s' % group, 'group': 'Summed',
+                   'maingroup': 'Summed'})
 
-        cols[group] = 'Summed'
+        cols[group + '_summed'] = 'Summed'
 
     plot_vars = [
         var for var, varo in ds.variables.items()
@@ -150,7 +154,7 @@ def stratplot(df, group_func=None, formatoptions=None, ax=None,
             grouper = grouper_cls.from_dataset(
                 fig, mt.Bbox.from_bounds(x, y0, w, height),
                 ds, variables, fmt=dict(formatoptions.get(group, {})),
-                project=mp, ax0=ax0, use_bars=(group in use_bars), group=group)
+                project=mp, ax0=ax0, use_bars=use_bars, group=group)
             if identifier == 'percentages':
                 resize = False
                 for plotter in grouper.plotters:
@@ -176,7 +180,9 @@ def stratplot(df, group_func=None, formatoptions=None, ax=None,
     ax0.invert_yaxis()
 
     sp = psy.gcp(True)(arr_name=arr_names)
-    sp[0].psy.update(yticks_visible=True, ylabel='%(name)s', draw=False)
+    sp[0].psy.update(
+        ylabel='%(name)s', ytickprops={'left': True, 'labelleft': True},
+        draw=False)
     for ax, p in sp.axes.items():
         ax_bbox = ax.get_position()
         d = {}
@@ -204,7 +210,7 @@ class StratGroup(object):
 
     #: The default formatoptions for the plots
     default_fmt = {
-        'yticks_visible': False,
+        'ytickprops': {'left': False, 'labelleft': False},
         }
 
     bar_default_fmt = default_fmt.copy()
@@ -271,7 +277,7 @@ class StratGroup(object):
             w = sum(bbox.width for bbox in boxes)
             bbox = boxes[0].from_bounds(x0, y0, w, boxes[0].height)
         self.bbox = bbox
-        self.group = group or arrays[0].group
+        self.group = group or arrays[0].attrs.get('maingroup')
 
     def resize_axes(self, axes):
         """Resize the axes in this group"""
@@ -341,10 +347,6 @@ class StratGroup(object):
         StratGroup
             The newly created instance with the arrays
         """
-        fmt = fmt or {}
-        defaults = cls.bar_default_fmt if use_bars else cls.default_fmt
-        for key, val in six.iteritems(defaults):
-            fmt.setdefault(key, val)
         if ax0 is None:
             ax0 = fig.add_axes(bbox.from_bounds(*bbox.bounds), label='ax0')
             axes = [ax0] + [fig.add_axes(bbox.from_bounds(*bbox.bounds),
@@ -354,17 +356,33 @@ class StratGroup(object):
             axes = [fig.add_axes(bbox.from_bounds(*bbox.bounds),
                                  sharey=ax0, label='ax%i' % i)
                     for i in range(len(variables))]
-        plotter_cls = BarStratPlotter if use_bars else StratPlotter
         grouped = DefaultOrderedDict(list)
         for name in variables:
             grouped[ds[name].attrs.get('group', 'group')].append(name)
+        # Use group specific bars
+        if use_bars:
+            try:
+                use_bars = list(use_bars)
+            except TypeError:
+                use_bars = list(grouped)
+        else:
+            use_bars = []
         sp = None
         axes_it = iter(axes)
         for subgroup, names in grouped.items():
+            formatoptions = dict(fmt or {})
+            if subgroup in use_bars or group in use_bars:
+                plotter_cls = BarStratPlotter
+                defaults = cls.bar_default_fmt
+            else:
+                plotter_cls = StratPlotter
+                defaults = cls.default_fmt
+            for key, val in six.iteritems(defaults):
+                formatoptions.setdefault(key, val)
             sp2 = psy.Project()._add_data(
-                plotter_cls, ds, name=names, draw=False, fmt=fmt,
+                plotter_cls, ds, name=names, draw=False, fmt=formatoptions,
                 prefer_list=False, ax=islice(axes_it, len(names)),
-                share='grouper')
+                share='grouper', attrs=dict(maingroup=group))
             if project is not None:
                 project.extend(sp2, new_name=True)
             sp = sp2 if sp is None else sp + sp2
@@ -439,10 +457,20 @@ class StratGroup(object):
         arrays = self._plotter_arrays or self._refs
         old = list(arrays)
         old_da = list(self.plotter_arrays)
+        project = self.plotters[0].project
+        if project is not None:
+            project = project.main
+            i = project.arr_names.index(old_da[0].psy.arr_name)
+            arr_names = project.arr_names[i:i+len(arrays)]
+            reorder_project = arr_names == self.arr_names
         arrays.clear()
         for name in names:
             arrays.append(next(old[i] for i, arr in enumerate(old_da)
-                               if arr.name == name))
+                               if str(arr.name) == name))
+        if project is not None and reorder_project:
+            project[i:i+len(arrays)] = self.plotter_arrays
+            if project.is_csp or project.is_cmp:
+                project.oncpchange.emit(project)
         self.resize_axes([ax for ax in self.axes if ax.get_visible()])
         self.plotter_arrays.update(force=['grouper'], draw=False)
 
@@ -526,6 +554,13 @@ class StratAllInOne(StratGroup):
             The newly created instance with the arrays
         """
         fmt = fmt or {}
+        if use_bars:
+            try:
+                use_bars = list(iter(use_bars))
+            except TypeError:
+                use_bars = True
+            else:
+                use_bars = group in use_bars
         defaults = cls.bar_default_fmt if use_bars else cls.default_fmt
         for key, val in six.iteritems(defaults):
             fmt.setdefault(key, val)
@@ -537,7 +572,8 @@ class StratAllInOne(StratGroup):
         plotter_cls = BarStratPlotter if use_bars else StratPlotter
         sp = psy.Project()._add_data(
             plotter_cls, ds, name=variables, draw=False, fmt=fmt,
-            prefer_list=True, ax=ax, share='grouper')
+            prefer_list=True, ax=ax, share='grouper',
+            attrs=dict(maingroup=group))
         if project is not None:
             project.extend(sp, new_name=True)
         return cls(list(sp), bbox, use_weakref=project is not None,

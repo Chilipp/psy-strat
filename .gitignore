@@ -59,6 +59,7 @@ matplotlibrc
 *psyplot_testresults
 tests/envs/cov_psyplot_py*
 tests/envs/psyplot_py*.html
+*pytest_cache
 
 # PyBuilder
 target/

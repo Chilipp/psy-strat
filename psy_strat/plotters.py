@@ -19,25 +19,6 @@ import numpy as np
 # -----------------------------------------------------------------------------
 
 
-class YTicksVisibility(Formatoption):
-    """
-    Enable or disable the visibility of ytick labels
-
-    Possible types
-    --------------
-    bool
-        If True, the ticklabels are visible. Otherwise, not
-    """
-
-    group = 'ticks'
-
-    name = 'Enable or disable the visibility of the yticks'
-
-    def update(self, value):
-        for t in self.ax.get_yticklabels():
-            t.set_visible(value)
-
-
 class LeftTitle(Title):
     """
     Show the title
@@ -117,16 +98,17 @@ class AxesGrouper(TextBase, Formatoption):
 
     texts = []
 
-    annotation = None
+    annotations = []
 
     value2share = None
 
     name = 'Group the axes'
 
-    dependencies = ['titleprops']
+    dependencies = ['titleprops', 'title']
 
     def initialize_plot(self, value):
         self.texts = []
+        self.annotations = []
         super(AxesGrouper, self).initialize_plot(value)
         # redraw the annotation on resize to make sure it stays at the same
         # place as the text
@@ -138,7 +120,7 @@ class AxesGrouper(TextBase, Formatoption):
             return
         self.set_params(value)
         self.create_text(value)
-        self.create_annotation()
+        self.create_annotations()
 
     def create_text(self, value):
         if self.angle == 90:
@@ -151,22 +133,27 @@ class AxesGrouper(TextBase, Formatoption):
             self.ax.text(xstart + (self.x0 + self.x1) / 2.0,
                          self.top + self.y,
                          self.replace(value[1], self.data),
-                         ha='center', va='center',
+                         ha='center', va='bottom',
                          transform=self.ax.figure.transFigure,
                          bbox=dict(facecolor='w', edgecolor='none')))
 
-    def create_annotation(self):
+    def create_annotations(self):
         """Annotate from the left to the right axes"""
-        arm = self.y_px / np.sin(self.angle * np.pi / 180.)
-        self.annotation = self.ax.annotate(
-            "", (self.x1, self.top), (self.x0, self.top),
-            'figure fraction', 'figure fraction',
+        fmtos = [self] + list(self.shared)
+        boxes = [fmto.ax.get_position() for fmto in fmtos]
+        fmto0 = min(zip(fmtos, boxes), key=lambda t: t[1].x0)[0]
+        fmto1 = max(zip(fmtos, boxes), key=lambda t: t[1].x0)[0]
+        t0 = fmto0.ax._left_title
+        t1 = fmto1.ax._left_title
+        kws = dict(
+            zorder=self.texts[0].get_zorder() - 0.1,
             arrowprops=dict(
                 arrowstyle="-",
-                connectionstyle=("arc,angleA=%(angle)1.3f,angleB=%(angle)1.3f,"
-                                 "armA=%(arm)1.3f,armB=%(arm)1.3f") % {
-                                     'angle': self.angle, 'arm': arm}),
-            zorder=self.texts[0].get_zorder() - 0.1)
+                connectionstyle="angle,angleA=%1.3f,angleB=0" % self.angle))
+        ax = self.ax
+        self.annotations = [
+            ax.annotate("", (0.0, 0.5), (0.0, 0.0), self.texts[0], t0, **kws),
+            ax.annotate("", (1.0, 0.5), (0.0, 0.0), self.texts[0], t1, **kws)]
 
     def set_params(self, value):
         """Set the parameters for the annotation and the text"""
@@ -200,9 +187,10 @@ class AxesGrouper(TextBase, Formatoption):
             for t in self.texts[:]:
                 t.remove()
                 self.texts.remove(t)
-        if annotation and self.annotation is not None:
-            self.annotation.remove()
-            del self.annotation
+        if annotation:
+            for a in self.annotations:
+                a.remove()
+            self.annotations.clear()
 
 
 class AxisLineStyle(DictFormatoption):
@@ -456,7 +444,6 @@ class StratPlotter(psyps.LinePlotter):
 
     _rcparams_string = ['plotter.strat.']
 
-    yticks_visible = YTicksVisibility('yticks_visible')
     axislinestyle = AxisLineStyle('axislinestyle')
     title = LeftTitle('title')
     title_wrap = TitleWrap('title_wrap')
@@ -479,7 +466,6 @@ class BarStratPlotter(psyps.BarPlotter):
 
     _rcparams_string = ['plotter.strat.', 'plotter.barstrat.']
 
-    yticks_visible = YTicksVisibility('yticks_visible')
     axislinestyle = AxisLineStyle('axislinestyle')
     title = LeftTitle('title')
     title_wrap = TitleWrap('title_wrap')

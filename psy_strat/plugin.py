@@ -93,7 +93,7 @@ def validate_axislinestyle(value):
             raise ValueError("Wrong keys (%s)!" % (', '.join(false_keys)))
         for key, val in value.items():
             value[key] = validate(val)
-    except:
+    except Exception:
         value = dict(zip(possible_keys, repeat(validate(value))))
     return value
 
@@ -137,7 +137,8 @@ defaultParams = {
         True, psys_validate['plotter.simple.transpose'],
         'fmt key to switch x- and y-axis for stratigraphic plots'],
     'plotter.strat.titleprops': [
-        {'rotation': 45, 'va': 'bottom', 'ha': 'left'},
+        {'rotation': 45, 'va': 'bottom', 'ha': 'left',
+         'bbox': {'facecolor': 'w', 'edgecolor': 'none'}},
         psys_validate['plotter.baseplotter.titleprops'],
         'The properties of the axes title'],
     'plotter.strat.legendlabels': [
@@ -157,10 +158,6 @@ defaultParams = {
     'plotter.strat.title_wrap': [
         15, validate_int, 'wrap the title after the given amount of characters'
         ],
-    'plotter.strat.yticks_visible': [
-        True, validate_bool,
-        "Boolean determining whether the yaxis-ticklabels should be visible or"
-        " not."],
     'plotter.strat.hlines': [
         None, try_and_error(validate_none, validate_grouper),
         'Show the measurements'],

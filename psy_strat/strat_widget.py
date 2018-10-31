@@ -13,6 +13,21 @@ import psyplot.project as psy
 from psyplot.utils import unique_everseen
 
 
+def get_stratplots_widgets(mainwindow=None):
+    """Get the :class:`StraditizerWidgets` from the psyplot GUI mainwindow"""
+    if mainwindow is None:
+        from psyplot_gui.main import mainwindow
+    if mainwindow is None:
+        raise NotImplementedError(
+            "Not running in interactive psyplot GUI!")
+    try:
+        stratplots = mainwindow.plugins[
+            'psy_strat.strat_widget:StratPlotsWidget:stratplots']
+    except KeyError:
+        raise KeyError('psy_strat not implemented as a GUI plugin!')
+    return stratplots
+
+
 class GrouperItem(QTreeWidgetItem):
     """An item whose contents is filled by a StratGrouper
 
@@ -79,8 +94,8 @@ class StratPlotsWidget(QWidget, DockMixin):
         module has already been imported. Otherwise None."""
         if 'psy_strat.plotters' not in sys.modules:
             return None
-        from psy_strat.plotters import StratPlotter
-        return StratPlotter
+        from psy_strat.plotters import StratPlotter, BarStratPlotter
+        return (StratPlotter, BarStratPlotter)
 
     @property
     def hidden(self):
@@ -110,6 +125,7 @@ class StratPlotsWidget(QWidget, DockMixin):
         project = project(self.stratplotter_cls)
         datasets = project.datasets
         fnames = project.dsnames_map
+        print(list(datasets))
         for num in set(self.groupers).difference(datasets):
             del self.groupers[num]
             tree = self.trees.pop(num)
@@ -121,8 +137,9 @@ class StratPlotsWidget(QWidget, DockMixin):
                 if num in project[i:i+1].datasets]
             arrs = project(arr_name=ds_arr_names)
             groupers = []
-            for group in unique_everseen(arr.attrs['group'] for arr in arrs):
-                arrays = project(group=group)
+            for group in unique_everseen(
+                    arr.attrs['maingroup'] for arr in arrs):
+                arrays = project(maingroup=group)
                 identifier = ds[group].identifier
                 grouper_cls = strat_groupers[identifier]
                 groupers.append(grouper_cls(arrays, use_weakref=True))
