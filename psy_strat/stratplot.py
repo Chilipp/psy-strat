@@ -630,7 +630,8 @@ class StratAllInOne(StratGroup):
         data.clear()
         ls = self.default_fmt.get('plot', '-')
         for name in names:
-            i = next(i for i, arr in enumerate(current) if arr.name == name)
+            i = next(i for i, arr in enumerate(current)
+                     if str(arr.name) == name)
             data.append(current[i])
             plot.append((visibilities[i] and ls) or None)
         plotter.update(plot=plot, replot=True, draw=False)
