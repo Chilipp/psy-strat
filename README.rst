@@ -13,7 +13,7 @@ psy-strat: A psyplot plugin for stratigraphic plots
     * - tests
       - |travis| |appveyor| |requires| |coveralls|
     * - package
-      - |version| |conda| |supported-versions| |supported-implementations| |zenodo|
+      - |version| |conda| |supported-versions| |supported-implementations|
 
 .. |docs| image:: http://readthedocs.org/projects/psy-strat/badge/?version=latest
     :alt: Documentation Status
@@ -50,10 +50,6 @@ psy-strat: A psyplot plugin for stratigraphic plots
 .. |supported-implementations| image:: https://img.shields.io/pypi/implementation/psy-strat.svg?style=flat
     :alt: Supported implementations
     :target: https://pypi.python.org/pypi/psy-strat
-
-.. |zenodo| image:: https://zenodo.org/badge/81938204.svg
-    :alt: Zenodo
-    :target: https://zenodo.org/badge/latestdoi/81938204
 
 .. end-badges
 
