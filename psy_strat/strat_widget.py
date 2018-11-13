@@ -125,7 +125,6 @@ class StratPlotsWidget(QWidget, DockMixin):
         project = project(self.stratplotter_cls)
         datasets = project.datasets
         fnames = project.dsnames_map
-        print(list(datasets))
         for num in set(self.groupers).difference(datasets):
             del self.groupers[num]
             tree = self.trees.pop(num)

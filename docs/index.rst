@@ -1,6 +1,22 @@
-===================================================
+.. psy-strat documentation master file, created by
+   sphinx-quickstart on Wed Oct 31 15:03:18 2018.
+   You can adapt this file completely to your liking, but it should at least
+   contain the root `toctree` directive.
+
+.. _psy-strat:
+
 psy-strat: A psyplot plugin for stratigraphic plots
-===================================================
+========================================================
+
+Welcome to the psyplot plugin for stratigraphic visualization. This package
+defines the :func:`~psy_strat.stratplot.stratplot` function that visualizes
+a dataframe in a stratigraphic plot.
+
+Additionally, this plugin interfaces with the
+:ref:`psyplot GUI <psyplot_gui:psyplot-gui>` package to allow you an
+interactive manipulation of the stratigraphic plot.
+
+See the :ref:`gallery_examples` for more information.
 
 .. start-badges
 
@@ -59,18 +75,22 @@ psy-strat: A psyplot plugin for stratigraphic plots
 
 .. end-badges
 
-Welcome to psy-strat! The interactive python package for the production of
-stratigraphic plots (e.g. pollen diagrams).
 
-To install this package, we recommend to use conda_ and install the package
-via::
+Documentation
+-------------
 
-    $ conda install -c chilipp psy-strat
+.. toctree::
+    :maxdepth: 1
 
-or use pip::
+    installing
+    examples/index
+    api/psy_strat
 
-    $ pip install psy-strat
 
-The full documentation is hosted at https://psy-strat.readthedocs.io
 
-.. _conda: https://conda.io/miniconda.html
+Indices and tables
+==================
+
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`

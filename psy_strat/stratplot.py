@@ -17,6 +17,9 @@ import numpy as np
 from psy_strat.plotters import StratPlotter, BarStratPlotter
 from psyplot.data import ArrayList
 import psyplot.project as psy
+from docrep import DocstringProcessor
+
+docstrings = DocstringProcessor()
 
 
 gui_plugin = 'psy_strat.strat_widget:StratPlotsWidget:stratplots'
@@ -35,6 +38,106 @@ def stratplot(df, group_func=None, formatoptions=None, ax=None,
               widths=None, calculate_percentages=True,
               min_percentage=20.0, trunc_height=0.3, fig=None, all_in_one=[],
               stacked=[], summed=[], use_bars=False, subgroups={}):
+    """Visualize a dataframe as a stratigraphic plot
+
+    This functions takes a :class:`pandas.DataFrame` and transforms it to a
+    stratigraphic plot. The columns in the DataFrame may be grouped together
+    using the `group_func` and the widths per group should then be specified.
+    This function uses matplotlib axes for each subdiagram that all share a
+    common vertical axes, the index of `df`. The variables are managed in the
+    order of occurence in the input `df` but, however, are grouped together
+    depending on the `group_func`.
+
+    The default is to plot every variable in `df` into separete line plots
+    that line up vertically. You can use the `percentages` parameter for area
+    plots, the `all_in_one` parameter for groups that should be all in one
+    single plot (i.e. axes) and the `stacked` parameter for stacked plots.
+
+    Parameters
+    ----------
+    df: pandas.DataFrame
+        The dataframe containing the data to plot.
+    group_func: function
+        A function that groups the columns in the input `df` together. It must
+        accept the name of a column and return the corresponding group name::
+
+            def group_func(col_name: str):
+                return "name of it's group"
+
+        If this parameter is not specified, each column will be assigned to the
+        `'nogroup'` group that can then be used in the other parameters, such
+        as `formatoptions` and `percentages`. Each group may also be divided
+        into `subgroups` (see below), in this case, the `group_func` should
+        return the corresponding subgroup.
+    formatoptions: dict
+        The formatoption for each group. Depending on the chosen plot method,
+        this contains the formatoptions for the psyplot plotter.
+    ax: matplotlib.axes.Axes
+        The matplotlib axes to plot on. New axes will be created that cover all
+        the space of the given axes.
+        If this parameter is not specified and `fig` is None, a new matplotlib
+        figure is created with a new matplotlib axes.
+    thresh: float
+        A minimum number between 0 and 100 (by default 1%) that a
+        `percentages` column has to fullfil in order to be included in the
+        plot. If a variable is always below this threshold, it will not be
+        included in the figure
+    percentages: list of str
+        The group names (see `group_func`) that represent percentage values.
+        This variables will be visualized using an area plot and can be
+        rescaled to sum up to 100% using the `calculate_percentages` parameter.
+    exclude: list of str
+        Either group names of column names in `df` that should be excluded in
+        the plot
+    widths: dict
+        A mapping from group name to it's relative width in the plot. The
+        values of this mapping should some up to 1, e.g.::
+
+            widths = {'group1': 0.3, 'group2': 0.5, 'group3': 0.2}
+    calculate_percentages: bool or list of str
+        If True, rescale the groups mentioned in the `percentages` parameter
+        to sum up to 100%. In case of a list of str, this parameter represents
+        the group (or variable) names that shall be used for the normalization
+    min_percentage: float
+        The minimum percentage (between 0 and 100) that should be covered by
+        variables displaying `percentages` data. Each plot in one of the
+        `percentages` groups will have at least have a xlim from 0 to
+        `min_percentage`
+    trunc_height: float
+        A float between 0 and 1. The fraction of the `ax` that should be
+        reserved for the group titles.
+    fig: matplotlib.Figure
+        The matplotlib figure to draw the plot on. If neither `ax` nor `fig` is
+        specified, a new figure will be created.
+    all_in_one: list of str
+        The groups mentioned in this parameter will all be plotted in one
+        single axes whereas the default is to plot each variable in a separate
+        plot
+    stacked: list of str
+        The groups mentioned in this parameter will all be plotted in one
+        single axes, stacked onto each other
+    summed: list of str
+        The groups (or subgroups) mentioned in this parameter will be summed
+        and an extra plot will be appended to the right of the stratigraphic
+        diagram
+    use_bars: list of str or bool
+        The variables specified in this parameter (or all variables if
+        `use_bars` is ``True``) will be visualized by a bar diagram, instead
+        of a line or area plot.
+    subgroups: dict
+        A mapping from group name to a list of subgroups, e.g.::
+
+            subgroups = {'Pollen': ['Trees', 'Shrubs']}
+
+        to divide an overarching group into subgroups.
+
+    Returns
+    -------
+    psyplot.project.Project
+        The newly created psyplot subproject that contains the displayed data
+    list of :class:`StratGroup`
+        The groupers that manage the different variables. There is one
+        grouper per group"""
     import psyplot.project as psy
     import matplotlib.pyplot as plt
     if group_func is None:
@@ -52,14 +155,22 @@ def stratplot(df, group_func=None, formatoptions=None, ax=None,
         cols[col] = group
 
     formatoptions = formatoptions or {}
-
     if calculate_percentages and set(percentages).intersection(groups):
         df = df.copy(True)
         for group in set(percentages).intersection(groups):
-            dfp = df.drop([col for col in df.columns
-                           if col not in groups[group]], 1)
-            for i, row in dfp.iterrows():
-                dfp.ix[i, :] = np.asarray(row) / np.sum(row) * 100.
+            members = groups[group]
+            try:
+                calculate_percentages = list(calculate_percentages)
+            except TypeError:
+                norm_members = members
+            else:
+                norm_members = list(set(chain.from_iterable(
+                    [var] if var in df.columns else groups[var]
+                    for var in calculate_percentages)))
+
+            df[members] *= 100. / np.tile(
+                df[norm_members].fillna(0).sum(axis=1)[:, np.newaxis],
+                (1, len(members)))
     if summed:
         try:
             summed = list(summed)
@@ -69,6 +180,9 @@ def stratplot(df, group_func=None, formatoptions=None, ax=None,
         groups['Summed'] = [g + '_summed' for g in summed]
         if widths:
             widths.setdefault('Summed', 0.2)
+        formatoptions.setdefault('Summed', {}).setdefault(
+            'legendlabels', '%(long_name)s')
+        formatoptions['Summed'].setdefault('title', '')
     else:
         summed = []
 
@@ -98,7 +212,7 @@ def stratplot(df, group_func=None, formatoptions=None, ax=None,
                      if varo.attrs.get('group') == group]
         ds[group + '_summed'] = xr.Variable(
             (idx, ), df[variables].sum(axis=1).values,
-            attrs={'long_name': 'Sum of %s' % group, 'group': 'Summed',
+            attrs={'long_name': group, 'group': 'Summed',
                    'maingroup': 'Summed'})
 
         cols[group + '_summed'] = 'Summed'
@@ -197,7 +311,7 @@ def stratplot(df, group_func=None, formatoptions=None, ax=None,
 
 
 class StratGroup(object):
-    """Abstract base class for visualizing stratigraphic plots"""
+    """Base class for visualizing stratigraphic plots"""
 
     #: list of weakref. Weak references to the created arrays
     _refs = []
@@ -265,6 +379,9 @@ class StratGroup(object):
             The bounding box for the axes
         use_weakref: bool
             If True, only weak references are used
+        group: str
+            The groupname of this grouper. If not given, it will be taken from
+            the ``'maingroup'`` attribute of the first array
         """
         if use_weakref:
             self._refs = [weakref.ref(arr) for arr in arrays]
@@ -290,21 +407,27 @@ class StratGroup(object):
             x0 += w
 
     def group_plots(self, height=None):
-        plotter = next((plotter for plotter in self.plotters
-                        if plotter.ax.get_visible()), None)
-        if plotter is None:
-            return
-        height = height or self.grouper_height
-        if height is None and plotter['grouper']:
-            height = plotter['grouper'][0]
-        elif height is None:
-            return
-        self.grouper_height = height
-        plotter.update(grouper=(height, '%(group)s'),
-                       draw=False, force=True)
-        for p in self.plotters:
-            with p.no_validation:
-                p['grouper'] = (height, '%(group)s')
+        """Group the variables visually
+
+        Parameters
+        ----------
+        height: float
+            The height of the grouper. If not specified, the previous
+            :attr:`grouper_height` attribute will be used"""
+        for plotter in (plotter for plotter in self.plotters
+                        if plotter.ax.get_visible() and
+                        not plotter.grouper.shared_by):
+            height = height or self.grouper_height
+            if height is None and plotter['grouper']:
+                height = plotter['grouper'][0]
+            elif height is None:
+                return
+            self.grouper_height = height
+            plotter.update(grouper=(height, '%(group)s'),
+                           draw=False, force=True)
+            for fmto in plotter.grouper.shared:
+                with fmto.plotter.no_validation:
+                    fmto.plotter['grouper'] = (height, '%(group)s')
 
     @property
     def figure(self):
@@ -316,6 +439,8 @@ class StratGroup(object):
         return arr.psy.plotter.ax.get_visible()
 
     @classmethod
+    @docstrings.get_sectionsf('StratGroup.from_dataset',
+                              sections=['Parameters', 'Returns'])
     def from_dataset(cls, fig, bbox, ds, variables, fmt=None, project=None,
                      ax0=None, use_bars=False, group=None):
         """
@@ -452,8 +577,8 @@ class StratGroup(object):
 
         Parameters
         ----------
-        mapping: dict
-            A mapping from the new index to the old one"""
+        names: list of str
+            The variable names that should be the first"""
         arrays = self._plotter_arrays or self._refs
         old = list(arrays)
         old_da = list(self.plotter_arrays)
@@ -465,8 +590,14 @@ class StratGroup(object):
             reorder_project = arr_names == self.arr_names
         arrays.clear()
         for name in names:
-            arrays.append(next(old[i] for i, arr in enumerate(old_da)
-                               if str(arr.name) == name))
+            arr = next((old[i] for i, arr in enumerate(old_da)
+                        if str(arr.name) == name), None)
+            if arr is not None:
+                arrays.append(arr)
+        # now add the ones that are not mentioned in `names`
+        for i, arr in enumerate(old_da):
+            if str(arr.name) not in names:
+                arrays.append(old[i])
         if project is not None and reorder_project:
             project[i:i+len(arrays)] = self.plotter_arrays
             if project.is_csp or project.is_cmp:
@@ -515,6 +646,8 @@ class StratAllInOne(StratGroup):
         return self.plotter_arrays[0]
 
     def group_plots(self, height):
+        """Reimplemented to do nothing because all variables are in one axes
+        """
         pass
 
     def is_visible(self, arr):
@@ -522,6 +655,7 @@ class StratAllInOne(StratGroup):
         return arr.name in self.plotter_arrays[0].names
 
     @classmethod
+    @docstrings.dedent
     def from_dataset(cls, fig, bbox, ds, variables, fmt=None, project=None,
                      ax0=None, use_bars=False, group=None):
         """
@@ -531,27 +665,11 @@ class StratAllInOne(StratGroup):
 
         Parameters
         ----------
-        fig: matplotlib.figure.Figure
-            The figure to plot in
-        bbox: matplotlib.transforms.Bbox
-            The bounding box for the newly created axes
-        ds: xarray.Dataset
-            The dataset
-        variables: list
-            The variables that shall be plot in the given `ds`
-        project: psyplot.project.Project
-            The mother project. If given, only weak references are stored in
-            the returned :class:`StratGroup` and each array is appended to the
-            `project`.
-        ax0: matplotlib.axes.Axes
-            The first subplot to share the y-axis with
-        use_bars: bool
-            Whether to use a bar plot or a line/area plot
+        %(StratGroup.from_dataset.parameters)s
 
         Returns
         -------
-        StratGroup
-            The newly created instance with the arrays
+        %(StratGroup.from_dataset.returns)s
         """
         fmt = fmt or {}
         if use_bars:

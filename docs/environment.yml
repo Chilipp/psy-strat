@@ -1,0 +1,13 @@
+name: psy_strat_docs
+channels:
+    - chilipp/label/dev
+    - chilipp/label/master
+    - chilipp
+dependencies:
+    - python=3.7
+    - pyqt>5.7
+    - psy-simple
+    - pip:
+        - autodocsumm
+        - sphinx-nbexamples
+        - psyplot-gui

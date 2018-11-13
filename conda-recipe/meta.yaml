@@ -1,0 +1,49 @@
+{% set name = "psy-strat" %}
+{% set version = "0.0.1.dev0" %}
+
+package:
+  name: {{ name|lower }}
+  version: {{ version }}
+
+source:
+  path: ../
+
+build:
+  number: 0
+  script: python setup.py install --single-version-externally-managed --record record.txt
+
+requirements:
+  build:
+    - python
+    - setuptools
+  run:
+    - python
+    - psy-simple
+
+test:
+  requires:
+    - pytest
+    - codecov
+    - pytest-cov
+    - psyplot-gui
+    - pyqt>5.7
+  source_files:
+    - tests
+  imports:
+    - psy_strat
+  commands:
+    - pytest -v --cov=psy_strat -v
+    - codecov
+
+
+about:
+  home: https://github.com/Chilipp/psy-strat
+  license: GPLv2
+  license_family: GPL2
+  license_file: LICENSE
+  summary: 'Python package for digitizing pollen diagrams'
+
+  description: |
+    Python package for creating stratigraphic diagrams
+  doc_url: http://psy-strat.readthedocs.io/
+  dev_url: https://github.com/Chilipp/psy-strat
