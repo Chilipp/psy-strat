@@ -26,7 +26,7 @@ test:
     - codecov
     - pytest-cov
     - psyplot-gui
-    - pyqt>5.7
+    - pyqt>5.7   # [osx]
   source_files:
     - tests
   imports:
