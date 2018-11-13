@@ -2,14 +2,21 @@ language: generic
 sudo: false # use container based build
 
 env:
-    - PYTHON_VERSION=3.7
-    - PYTHON_VERSION=3.6
-    - global:
+    global:
         - secure: "rlHalwsu5VMjvPvkJv4St1AmOL7wddg7OqwRob9pQIg8Zk5BhrWJqxqhMQYL2YtKqaNrEBZwPqCY51akdAixKOo1BsjDoq73Ud04HSdPeb75s+dwWKcTk7T4wehUHJrDSKhupFS511Gpvac3992Eo/Zign5o8URs6+pz5ckMthC7sOVgjpVYqK8ozfQBBEY9OYnJJr2xOZRpJl5852Qd0szXIJA1dRnRB57npJnvEinvyoji5Rq/jCBmbQZJhX431RSnJpIiWdnEFdBtcylblY89bcb1bmdLbHRAFPoxftnq/AFodO7UKEN15qnLDuZAP+OiSdbBaPW1TTIB9I3kbAqWYEAtXBSH/ubVnXypWdCW0aqrR/EuKixUeycU//whfgcOJXgwhPUNuZLxNoTCBJD0hX7Pc1QoR9X6EXdJbevOV1QST76wPYypzKDD7Ra+IifJVvtzCTwJjvw0lRTHDLQmnFg59OncySMEU4XzcVGDRigZR3EvKK51C4TKtF4VPU8BTrn3Imw7o5YofAp/KLfDvce0nbhNMdQzHpgKMBdercTU/nyn63nJeyxrinQ8qqz7V5x3p9zZZyWCWxqB5UNWis+BmU+svHbCOTruxWd+LvDagvZcGF74akymEHjPjZO1RGBQVOQPzjb6P8Pp1OAJq8+/LUpRi5eO8voPNVA="
-
-os:
-    - linux
-    - osx
+    matrix:
+        - env:
+            - PYTHON_VERSION=3.7
+          os: linux
+        - env:
+            - PYTHON_VERSION=3.6
+          os: linux
+        - env:
+            - PYTHON_VERSION=3.7
+          os: osx
+        - env:
+            - PYTHON_VERSION=3.6
+          os: osx
 
 before_install:
     # define functions to unset and reset encrypted variables
