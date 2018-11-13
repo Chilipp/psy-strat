@@ -18,7 +18,8 @@ requirements:
     - setuptools
   run:
     - python
-    - psy-simple
+    - psy-simple>=1.2.0
+    - psyplot>=1.2.0
 
 test:
   requires:
