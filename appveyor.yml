@@ -17,7 +17,7 @@ install:
     - conda update -q conda
     - conda install conda-build
     - conda info -a
-    - SET PYTHONWARNINGS='ignore:mode:DeprecationWarning:docutils.io:245'
+    - 'SET PYTHONWARNINGS=ignore:mode:DeprecationWarning:docutils.io:245'
 
 build: false
 
