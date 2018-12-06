@@ -1,13 +1,17 @@
 environment:
     matrix:
-        - PYTHON: "C:\\Miniconda37-x64"
-          PYTHON_ARCH: "64"
-        - PYTHON: "C:\\Miniconda37"
-          PYTHON_ARCH: "32"
         - PYTHON: "C:\\Miniconda36-x64"
           PYTHON_ARCH: "64"
+          PYTHON_VERSION: 3.6
         - PYTHON: "C:\\Miniconda36"
           PYTHON_ARCH: "32"
+          PYTHON_VERSION: 3.6
+        - PYTHON: "C:\\Miniconda36-x64"
+          PYTHON_ARCH: "64"
+          PYTHON_VERSION: 3.7
+        - PYTHON: "C:\\Miniconda36"
+          PYTHON_ARCH: "32"
+          PYTHON_VERSION: 3.7
 
 install:
     - "SET ORIGPATH=%PATH%"
@@ -15,11 +19,17 @@ install:
     - conda config --set always_yes yes --set changeps1 no
     - conda config --add channels conda-forge
     - conda update -q conda
-    - conda install conda-build
+    - conda install conda-build anaconda-client
     - conda info -a
     - 'SET PYTHONWARNINGS=ignore:mode:DeprecationWarning:docutils.io:245'
 
-build: false
+build: off
 
 test_script:
-    - conda build conda-recipe
+    - setlocal
+    - set CONDA_REPO_TOKEN=
+    - conda build conda-recipe --python %PYTHON_VERSION%
+    - endlocal
+
+deploy_script:
+    - cmd: "python ci\\deploy_anaconda.py"

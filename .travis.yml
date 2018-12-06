@@ -79,8 +79,14 @@ script:
 
 deploy:
   - provider: script
-    script: ci/deploy_anaconda.sh
+    script: ci/deploy_anaconda.py
     skip_cleanup: true
     on:
       all_branches: true
+      repo: Chilipp/psy-strat
+  - provider: script
+    script: ci/deploy_anaconda.py
+    skip_cleanup: true
+    on:
+      tags: true
       repo: Chilipp/psy-strat
