@@ -441,6 +441,7 @@ class OccurencePlot(Formatoption):
 
 
 class StratPlotter(psyps.LinePlotter):
+    """A plotter for stratigraphic diagrams"""
 
     _rcparams_string = ['plotter.strat.']
 
@@ -463,6 +464,7 @@ class StratPlotter(psyps.LinePlotter):
 
 
 class BarStratPlotter(psyps.BarPlotter):
+    """A bar plotter for stratigraphic diagrams"""
 
     _rcparams_string = ['plotter.strat.', 'plotter.barstrat.']
 
