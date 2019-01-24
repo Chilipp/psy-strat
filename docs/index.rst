@@ -29,7 +29,7 @@ See the :ref:`gallery_examples` for more information.
         * - docs
           - |docs|
         * - tests
-          - |travis| |appveyor| |requires| |coveralls|
+          - |travis| |appveyor| |coveralls|
         * - package
           - |version| |conda| |supported-versions| |supported-implementations| |zenodo|
 
@@ -48,10 +48,6 @@ See the :ref:`gallery_examples` for more information.
     .. |coveralls| image:: https://coveralls.io/repos/github/Chilipp/psy-strat/badge.svg?branch=master
         :alt: Coverage
         :target: https://coveralls.io/github/Chilipp/psy-strat?branch=master
-
-    .. |requires| image:: https://requires.io/github/Chilipp/psy-strat/requirements.svg?branch=master
-        :alt: Requirements Status
-        :target: https://requires.io/github/Chilipp/psy-strat/requirements/?branch=master
 
     .. |version| image:: https://img.shields.io/pypi/v/psy-strat.svg?style=flat
         :alt: PyPI Package latest release
