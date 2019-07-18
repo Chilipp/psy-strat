@@ -82,10 +82,12 @@ def stratplot(df, group_func=None, formatoptions=None, ax=None,
         `percentages` column has to fullfil in order to be included in the
         plot. If a variable is always below this threshold, it will not be
         included in the figure
-    percentages: list of str
+    percentages: list of str or bool
         The group names (see `group_func`) that represent percentage values.
         This variables will be visualized using an area plot and can be
         rescaled to sum up to 100% using the `calculate_percentages` parameter.
+        This parameter can also be set to True if all groups shall be
+        considered as percentage data
     exclude: list of str
         Either group names of column names in `df` that should be excluded in
         the plot
@@ -153,6 +155,14 @@ def stratplot(df, group_func=None, formatoptions=None, ax=None,
         group = subgroup2group.get(group, group)
         groups[group].append(col)
         cols[col] = group
+
+    # Setup percentages
+    if isinstance(percentages, six.string_types):
+        percentages = [percentages]
+    try:
+        percentages = list(percentages)
+    except TypeError:
+        percentages = list(groups) if percentages else []
 
     formatoptions = formatoptions or {}
     if calculate_percentages and set(percentages).intersection(groups):
