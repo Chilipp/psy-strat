@@ -23,7 +23,7 @@ from itertools import repeat
 from psy_simple.plugin import (
     rcParams as psys_rcParams, validate_bool, validate_int, try_and_error,
     validate_none, validate_float, validate_str, validate_color,
-    validate_lineplot, validate_marker, ValidateList)
+    validate_lineplot, validate_marker, ValidateList, ValidateInStrings)
 
 
 def get_versions(requirements=True):
@@ -136,6 +136,9 @@ defaultParams = {
     'plotter.strat.transpose': [
         True, psys_validate['plotter.simple.transpose'],
         'fmt key to switch x- and y-axis for stratigraphic plots'],
+    'plotter.strat.title_loc': [
+        'left', ValidateInStrings('title_loc', ['center', 'left', 'right'],
+                                  True)],
     'plotter.strat.titleprops': [
         {'rotation': 45, 'va': 'bottom', 'ha': 'left',
          'bbox': {'facecolor': 'w', 'edgecolor': 'none'}},

@@ -19,6 +19,31 @@ import numpy as np
 # -----------------------------------------------------------------------------
 
 
+class TitleLoc(Formatoption):
+    """
+    Specify the position of the axes title
+
+    Parameters
+    ----------
+    str
+        The position the axes title
+
+        center
+            In the center of the axes (the standard way)
+        left
+            At the left corner
+        right
+            At the right corner"""
+
+    group = Title.group
+
+    name = 'Location of the axes title'
+
+    def update(self, value):
+        # value is considered in title formatoption
+        pass
+
+
 class LeftTitle(Title):
     """
     Show the title
@@ -38,14 +63,22 @@ class LeftTitle(Title):
 
     See Also
     --------
+    title_loc: The location of the title
     figtitle, titlesize, titleweight, titleprops"""
     # Reimplemented to plot the title on the left side
+
+    dependencies = Title.dependencies + ['title_loc']
 
     def initialize_plot(self, value):
         arr = self.data
         self.texts = [self.ax.set_title(
             self.replace(value, arr, attrs=self.enhanced_attrs),
-            loc='left')]
+            loc=self.title_loc.value)]
+
+    def update(self, value):
+        for t in self.texts:
+            t.set_text('')
+        self.initialize_plot(value)
 
 
 class TitleWrap(Formatoption):
@@ -446,6 +479,7 @@ class StratPlotter(psyps.LinePlotter):
     _rcparams_string = ['plotter.strat.']
 
     axislinestyle = AxisLineStyle('axislinestyle')
+    title_loc = TitleLoc('title_loc')
     title = LeftTitle('title')
     title_wrap = TitleWrap('title_wrap')
     grouper = AxesGrouper('grouper')
@@ -469,6 +503,7 @@ class BarStratPlotter(psyps.BarPlotter):
     _rcparams_string = ['plotter.strat.', 'plotter.barstrat.']
 
     axislinestyle = AxisLineStyle('axislinestyle')
+    title_loc = TitleLoc('title_loc')
     title = LeftTitle('title')
     title_wrap = TitleWrap('title_wrap')
     grouper = AxesGrouper('grouper')
