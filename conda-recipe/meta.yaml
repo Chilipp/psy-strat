@@ -23,7 +23,7 @@ requirements:
     - psy-simple >=1.2.0
     - psyplot >=1.2.0
     - numpy >=1.14  # [win]
-    - xarray !=0.13.1
+    - xarray !=0.13.0
 
 test:
   requires:
