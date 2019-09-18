@@ -68,6 +68,7 @@ install:
         conda update -q conda
         conda install anaconda-client conda-build
         conda info -a
+    - if [[ $TRAVIS_TAG == "" ]]; then export GIT_BRANCH=$TRAVIS_BRANCH; fi
     - reset_secure
 script:
     - unset_secure

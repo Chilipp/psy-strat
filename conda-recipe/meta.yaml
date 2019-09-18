@@ -1,5 +1,5 @@
 {% set name = "psy-strat" %}
-{% set version = "0.1.0" %}
+{% set version = "0.1.1" %}
 
 package:
   name: {{ name|lower }}
@@ -9,18 +9,21 @@ source:
   path: ../
 
 build:
-  number: 0
-  script: python setup.py install --single-version-externally-managed --record record.txt
+  number: {{ environ.get('GIT_DESCRIBE_NUMBER', 0) }}
+  string: {{ environ.get('GIT_BUILD_STR', '') }}{% if environ.get('GIT_BRANCH') %}_{{ environ.get('GIT_BRANCH').replace('-', '') }}{% endif %}
+  script: python -m pip install . --no-deps --ignore-installed -vvv
+  skip: true  # [py == 27]
 
 requirements:
   build:
     - python
-    - setuptools
+    - pip
   run:
     - python
-    - psy-simple>=1.2.0
-    - psyplot>=1.2.0
-    - numpy>=1.14  # [win]
+    - psy-simple >=1.2.0
+    - psyplot >=1.2.0
+    - numpy >=1.14  # [win]
+    - xarray !=0.13.1
 
 test:
   requires:
@@ -34,7 +37,7 @@ test:
   imports:
     - psy_strat
   commands:
-    - pytest -v --cov=psy_strat -v
+    - pytest -v --cov=psy_strat
     - codecov
 
 
