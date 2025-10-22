@@ -2,6 +2,12 @@
 psy-strat: A psyplot plugin for stratigraphic plots
 ===================================================
 
+.. image:: http://unmaintained.tech/badge.svg
+    :target: http://unmaintained.tech/
+    :alt: No Maintenance Intended
+
+**This module is not maintained!**
+
 .. start-badges
 
 .. list-table::

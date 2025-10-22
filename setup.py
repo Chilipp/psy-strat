@@ -36,7 +36,7 @@ setup(name='psy-strat',
       description='A psyplot plugin for stratigraphic plots',
       long_description=readme(),
       classifiers=[
-        'Development Status :: 1 - Planning',
+        'Development Status :: 7 - Inactive',
         'Intended Audience :: Developers',
         'Topic :: Scientific/Engineering :: Visualization',
         'Topic :: Scientific/Engineering',
