@@ -32,7 +32,7 @@ class PyTest(TestCommand):
 
 
 setup(name='psy-strat',
-      version='0.1.1',
+      version='0.1.2',
       description='A psyplot plugin for stratigraphic plots',
       long_description=readme(),
       classifiers=[
